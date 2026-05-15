@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Crop Assistant - Knowledge Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2e7d32;
+            --primary-light: #4caf50;
+            --secondary-color: #8bc34a;
+            --bg-color: #f0f4f0;
+            --text-color: #2c3e50;
+            --bot-msg-bg: #ffffff;
+            --user-msg-bg: #2e7d32;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1b5e20 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chat-container {
+            flex: 1;
+            max-width: 900px;
+            margin: 20px auto;
+            width: 95%;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 15px;
+            line-height: 1.5;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: #f1f8e9;
+            color: #1b5e20;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #dcedc8;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: #fff;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            outline: none;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus { border-color: var(--primary-color); }
+
+        button {
+            padding: 0 25px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        button:hover { background-color: #1b5e20; }
+
+        .chip {
+            display: inline-block;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin: 5px;
+            cursor: pointer;
+            border: 1px solid #c8e6c9;
+            transition: all 0.2s;
+        }
+
+        .chip:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .typing {
+            font-style: italic;
+            color: #757575;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+            background: white;
+        }
+
+        select {
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🌱 Agri-Sense Advisor</h1>
+        <p>Interactive Agricultural Intelligence Hub</p>
+    </header>
+
+    <div class="chat-container">
+        <div id="chat-messages">
+            <div class="message bot-message">
+                Hello! I am your AI agricultural assistant. I can help you with crop choices, disease management, profit analysis, and soil advice. 
+                <br><br>
+                What would you like to know today?
+            </div>
+        </div>
+        <div id="typing" class="typing" style="padding-left: 20px;">Assistant is thinking...</div>
+
+        <div class="controls">
+            <select id="language">
+                <option value="english">English</option>
+                <option value="hindi">Hindi</option>
+                <option value="marathi">Marathi</option>
+                <option value="telugu">Telugu</option>
+            </select>
+            <span class="chip" onclick="sendMessage('Tell me about Mango')">Mango Info</span>
+            <span class="chip" onclick="sendMessage('Tomato diseases')">Diseases</span>
+            <span class="chip" onclick="sendMessage('Rice profit')">Economics</span>
+        </div>
+
+        <form id="chat-form" class="input-area">
+            <input type="text" id="user-input" placeholder="Ask anything about farming..." autocomplete="off">
+            <button type="submit">Send</button>
+        </form>
+    </div>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const chatMessages = document.getElementById('chat-messages');
+        const typingIndicator = document.getElementById('typing');
+        const languageSelect = document.getElementById('language');
+
+        function appendMessage(text, isUser) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            
+            if (isUser) {
+                msgDiv.textContent = text;
+            } else {
+                msgDiv.innerHTML = marked.parse(text);
+            }
+            
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function sendMessage(text = null) {
+            const message = text || userInput.value.trim();
+            if (!message) return;
+
+            if (!text) userInput.value = '';
+            appendMessage(message, true);
+
+            typingIndicator.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/chatbot/message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        language: languageSelect.value
+                    })
+                });
+
+                const data = await response.json();
+                typingIndicator.style.display = 'none';
+
+                if (data.success) {
+                    appendMessage(data.response.message, false);
+                } else {
+                    appendMessage("Sorry, I encountered an error: " + data.error, false);
+                }
+            } catch (error) {
+                typingIndicator.style.display = 'none';
+                appendMessage("Network error. Please try again later.", false);
+            }
+        }
+
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            sendMessage();
+        });
+    </script>
+</body>
+</html>

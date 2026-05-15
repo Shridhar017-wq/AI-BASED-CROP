@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Crop Recommendation System</title>
+    <!-- Immediate Authentication Check -->
+    <script>
+        if (localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.replace('/login');
+        }
+    </script>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2ecc71">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(rgba(10, 42, 18, 0.7), rgba(20, 52, 28, 0.8)), url('https://images.unsplash.com/photo-1625246333195-78d9c38ad449?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') center/cover fixed;
+            min-height: 100vh;
+            padding: 20px;
+            color: #2c3e50;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+            border-bottom: 5px solid #81c784;
+        }
+
+        .header h1 {
+            font-size: 2.8em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .form-section {
+            flex: 1;
+            min-width: 300px;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid #e2e8f0;
+        }
+
+        .results-section {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .form-group {
+            margin-bottom: 22px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #1a202c;
+            font-size: 0.95em;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 14px;
+            background-color: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            color: #2d3748;
+            transition: all 0.2s ease;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            background-color: #ffffff;
+            border-color: #48bb78;
+            box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.2);
+        }
+
+        .btn-predict {
+            width: 100%;
+            background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+            color: white;
+            padding: 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 6px rgba(56, 161, 105, 0.25);
+        }
+
+        .btn-predict:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 14px rgba(56, 161, 105, 0.3);
+        }
+
+        .btn-predict:disabled {
+            background: #cbd5e0;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f1f5f9;
+            border-top: 4px solid #38a169;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .crop-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-top: 6px solid #48bb78;
+            transition: all 0.3s ease;
+        }
+
+        .crop-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .crop-card.rank-1 {
+            border-top-color: #ecc94b;
+            background: linear-gradient(to bottom, #fffff0 0%, #ffffff 100%);
+        }
+
+        .crop-card.rank-2 {
+            border-top-color: #ed8936;
+        }
+
+        .crop-card.rank-3 {
+            border-top-color: #f56565;
+        }
+
+        .crop-name {
+            font-size: 1.8em;
+            font-weight: 800;
+            color: #1a202c;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .crop-probability {
+            background: rgba(72, 187, 120, 0.15);
+            color: #276749;
+            padding: 8px 16px;
+            border-radius: 8px;
+            display: inline-block;
+            font-weight: 700;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+            border: 1px solid rgba(72, 187, 120, 0.3);
+        }
+
+        .profit-analysis {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            margin-top: 15px;
+        }
+
+        .profit-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px dashed #cbd5e0;
+            font-size: 0.95em;
+        }
+
+        .profit-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .rank-badge {
+            background: linear-gradient(135deg, #ecc94b 0%, #d69e2e 100%);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.55em;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            box-shadow: 0 2px 4px rgba(214, 158, 46, 0.3);
+        }
+
+        .rank-2 .rank-badge {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+            box-shadow: 0 2px 4px rgba(221, 107, 32, 0.3);
+        }
+
+        .rank-3 .rank-badge {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+            box-shadow: 0 2px 4px rgba(229, 62, 62, 0.3);
+        }
+
+        /* Chatbot Button Styles */
+        .chatbot-trigger {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 65px;
+            height: 65px;
+            background: linear-gradient(135deg, #38a169 0%, #276749 100%);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(76, 175, 80, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .chatbot-trigger:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(76, 175, 80, 0.6);
+        }
+
+        .chatbot-trigger.active {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+        }
+
+        /* Mini Chatbot Styles */
+        .mini-chatbot {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 350px;
+            height: 500px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            display: none;
+            flex-direction: column;
+            z-index: 999;
+            overflow: hidden;
+        }
+
+        .mini-chatbot.show {
+            display: flex;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .mini-chatbot-header {
+            background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #81c784;
+        }
+
+        .mini-chatbot-header h3 {
+            font-size: 1.1em;
+            margin: 0;
+        }
+
+        .mini-close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mini-chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            font-size: 14px;
+        }
+
+        .mini-message {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .mini-message.user {
+            justify-content: flex-end;
+        }
+
+        .mini-message-content {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            word-wrap: break-word;
+            font-size: 13px;
+        }
+
+        .mini-message.bot .mini-message-content {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+            border-bottom-left-radius: 3px;
+        }
+
+        .mini-message.user .mini-message-content {
+            background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+            color: white;
+            border-bottom-right-radius: 3px;
+        }
+
+        .mini-chat-input-container {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #eee;
+        }
+
+        .mini-chat-form {
+            display: flex;
+            gap: 8px;
+        }
+
+        .mini-chat-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .mini-chat-input:focus {
+            border-color: #4CAF50;
+        }
+
+        .mini-send-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .mini-send-btn:hover {
+            background: #45a049;
+        }
+
+        .mini-send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .mini-typing {
+            display: none;
+            padding: 5px 15px;
+            font-style: italic;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .mini-typing.show {
+            display: block;
+        }
+
+        /* Scanner Animation Support */
+        .scanning-container {
+            position: relative;
+            display: inline-block;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+
+        .scanning-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(46, 204, 113, 0.8);
+            box-shadow: 0 0 15px #2ecc71;
+            z-index: 10;
+            animation: scanLine 2s linear infinite;
+        }
+
+        @keyframes scanLine {
+            0% {
+                top: 0%;
+            }
+
+            100% {
+                top: 100%;
+            }
+        }
+
+        .mini-chip {
+            display: inline-block;
+            background: #e8f5e8;
+            color: #2c5530;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            cursor: pointer;
+            margin: 2px;
+            border: 1px solid #c8e6c9;
+        }
+
+        .mini-chip:hover {
+            background: #4CAF50;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                border-radius: 12px;
+            }
+
+            .main-content {
+                flex-direction: column;
+                padding: 15px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .form-section {
+                padding: 15px;
+            }
+
+            /* Responsive Weather & SMS Panels */
+            .weather-panel>div {
+                flex-direction: column !important;
+                gap: 8px !important;
+            }
+
+            .weather-panel button {
+                width: 100%;
+                justify-content: center;
+                padding: 12px 15px !important;
+            }
+
+            input,
+            select,
+            .btn-predict {
+                font-size: 16px;
+                /* Prevents iOS structural zoom */
+            }
+
+            /* Responsive Chatbot */
+            .mini-chatbot {
+                width: calc(100vw - 20px);
+                right: 10px;
+                left: 10px;
+                height: 450px;
+                bottom: 90px;
+            }
+
+            .chatbot-trigger {
+                bottom: 20px;
+                right: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header" style="position: relative;">
+            <div id="userStateArea"
+                style="position: absolute; top: 20px; right: 30px; display: flex; align-items: center; gap: 15px;">
+                <span id="welcomeMessage"
+                    style="font-weight: 600; display: none; background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 20px;"></span>
+                <a href="/login" id="loginBtnHeader"
+                    style="background: white; color: #2e7d32; padding: 8px 20px; border-radius: 20px; text-decoration: none; font-weight: 700; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s ease;">Sign
+                    In</a>
+                <button id="logoutBtnHeader"
+                    style="display: none; background: rgba(255,255,255,0.2); color: white; border: 1px solid white; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: 600; transition: all 0.3s ease;">Sign
+                    Out</button>
+            </div>
+            <h1>🌾 AI Crop Recommendation System</h1>
+            <p>Get intelligent crop suggestions based on soil and climate conditions</p>
+        </div>
+
+        <div class="main-content">
+            <div class="form-section">
+                <h2
+                    style="margin-bottom: 20px; color: #1a202c; font-weight: 800; font-size: 1.5em; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+                    📊 Field Parameters</h2>
+
+                <div class="weather-panel"
+                    style="background: rgba(74, 144, 226, 0.08); border-left: 4px solid #4a90e2; padding: 18px; border-radius: 10px; margin-bottom: 25px;">
+                    <h3 style="margin-bottom: 10px; color: #2c5282; font-size: 1.15em; font-weight: 700;">🌍 Local
+                        Climate Auto-Fill</h3>
+                    <p style="font-size: 0.95em; margin-bottom: 15px; color: #4a5568;">Enter your city to automatically
+                        structure environmental models from live satellite API datasets.</p>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="cityInput" placeholder="e.g. Nashik, California"
+                            style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0;">
+                        <button type="button" id="detectLocationBtn"
+                            style="background: white; color: #2d3748; border: 1px solid #cbd5e0; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"
+                            title="Use GPS Location"><span>📍</span> GPS</button>
+                        <button type="button" id="fetchWeatherBtn"
+                            style="background: #4a90e2; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(74,144,226,0.3);">Sync</button>
+                    </div>
+                </div>
+
+                <!-- Twilio SMS Alerts Mock -->
+                <div class="weather-panel"
+                    style="background: rgba(56, 161, 105, 0.08); border-left: 4px solid #38a169; padding: 18px; border-radius: 10px; margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 10px; color: #276749; font-size: 1.15em; font-weight: 700;">📱 Agriculture
+                        Alert Intelligence</h3>
+                    <p style="font-size: 0.95em; margin-bottom: 15px; color: #4a5568;">Register your mobile number to
+                        receive automated extreme weather SMS warnings and rain delays.</p>
+                    <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                        <input type="tel" id="smsPhone" placeholder="+91 9999999999"
+                            style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0;">
+                        <button type="button" id="subscribeSmsBtn"
+                            style="background: #38a169; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(56,161,105,0.3);">Enroll</button>
+                    </div>
+                </div>
+
+                <form id="cropForm">
+                    <div class="form-group">
+                        <label for="nitrogen">Nitrogen (N) - kg/ha:</label>
+                        <input type="number" id="nitrogen" name="nitrogen" min="0" max="200" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phosphorus">Phosphorus (P) - kg/ha:</label>
+                        <input type="number" id="phosphorus" name="phosphorus" min="0" max="150" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="potassium">Potassium (K) - kg/ha:</label>
+                        <input type="number" id="potassium" name="potassium" min="0" max="300" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="temperature">Temperature (°C):</label>
+                        <input type="number" id="temperature" name="temperature" step="0.1" min="0" max="50" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="humidity">Humidity (%):</label>
+                        <input type="number" id="humidity" name="humidity" min="0" max="100" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ph">pH Level:</label>
+                        <input type="number" id="ph" name="ph" step="0.1" min="0" max="14" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rainfall">Rainfall (mm):</label>
+                        <input type="number" id="rainfall" name="rainfall" min="0" max="3000" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="landSize" style="color:#27ae60; font-weight:800;">Total Farm Land Size
+                            (Hectares):</label>
+                        <input type="number" id="landSize" name="landSize" step="0.1" min="0.1" value="1.0" required>
+                    </div>
+
+                    <button type="submit" class="btn-predict">Get Crop Recommendations</button>
+                </form>
+            </div>
+
+            <div class="results-section">
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing soil conditions and generating recommendations...</p>
+                </div>
+
+                <div class="results" id="results">
+                    <h2 style="margin-bottom: 20px; color: #2c3e50;">Top 3 Recommended Crops</h2>
+                    <div id="cropRecommendations"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot Button -->
+    <button class="chatbot-trigger" id="chatbotTrigger">💬</button>
+
+    <!-- Mini Chatbot -->
+    <div class="mini-chatbot" id="miniChatbot">
+        <div class="mini-chatbot-header">
+            <h3 style="display: flex; align-items: center; gap: 8px;">
+                🌱 Crop Assistant
+                <select id="chatLanguage"
+                    style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; padding: 2px 5px; font-size: 0.8em; outline: none; cursor: pointer;">
+                    <option value="english" style="color: black;">English</option>
+                    <option value="hindi" style="color: black;">हिंदी (Hindi)</option>
+                    <option value="marathi" style="color: black;">मराठी (Marathi)</option>
+                    <option value="punjabi" style="color: black;">ਪੰਜਾਬੀ (Punjabi)</option>
+                    <option value="telugu" style="color: black;">తెలుగు (Telugu)</option>
+                </select>
+            </h3>
+            <button class="mini-close-btn" id="closeChatbot">×</button>
+        </div>
+
+        <div class="mini-chat-messages" id="miniChatMessages">
+            <div class="mini-message bot">
+                <div class="mini-message-content">
+                    Hi! I can help you learn about crops. Try:
+                    <div style="margin-top: 5px;">
+                        <span class="mini-chip" onclick="sendMiniMessage('Tell me about rice')">Rice info</span>
+                        <span class="mini-chip" onclick="sendMiniMessage('Tomato diseases')">Diseases</span>
+                        <span class="mini-chip" onclick="sendMiniMessage('Wheat profit')">Profit</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mini-typing" id="miniTyping">Bot is typing...</div>
+
+        <div class="mini-chat-input-container">
+            <form class="mini-chat-form" id="miniChatForm">
+                <input type="file" id="imageUploadInput" accept="image/*" style="display: none;">
+                <button type="button" class="mini-send-btn" id="uploadBtn"
+                    style="background: #9b59b6; padding: 8px 10px; margin-right: 5px;" title="Upload Image">📷</button>
+                <input type="text" class="mini-chat-input" id="miniChatInput" placeholder="Ask about crops..."
+                    autocomplete="off">
+                <button type="button" class="mini-send-btn" id="voiceBtn"
+                    style="background: #e67e22; padding: 8px 10px;" title="Voice Input">🎙️</button>
+                <button type="submit" class="mini-send-btn" id="miniSendBtn">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Sample crop data with profit analysis
+        const cropProfitData = {
+            rice: { costPerHa: 45000, yieldPerHa: 4500, pricePerKg: 25, season: "Monsoon (June - Oct)", growthPeriod: "120-150 days" },
+            wheat: { costPerHa: 40000, yieldPerHa: 3500, pricePerKg: 30, season: "Winter (Nov - Apr)", growthPeriod: "110-130 days" },
+            corn: { costPerHa: 35000, yieldPerHa: 5000, pricePerKg: 22, season: "Monsoon / Winter", growthPeriod: "90-120 days" },
+            maize: { costPerHa: 35000, yieldPerHa: 5000, pricePerKg: 22, season: "Monsoon / Winter", growthPeriod: "90-120 days" },
+            cotton: { costPerHa: 65000, yieldPerHa: 600, pricePerKg: 85, season: "Monsoon", growthPeriod: "160-200 days" },
+            sugarcane: { costPerHa: 85000, yieldPerHa: 80000, pricePerKg: 4, season: "Winter / Spring", growthPeriod: "10-12 months" },
+            tomato: { costPerHa: 75000, yieldPerHa: 30000, pricePerKg: 20, season: "Winter / Summer", growthPeriod: "90-110 days" },
+            potato: { costPerHa: 60000, yieldPerHa: 25000, pricePerKg: 15, season: "Winter", growthPeriod: "90-120 days" },
+            onion: { costPerHa: 55000, yieldPerHa: 18000, pricePerKg: 22, season: "Winter / Monsoon", growthPeriod: "120-150 days" },
+            banana: { costPerHa: 110000, yieldPerHa: 65000, pricePerKg: 12, season: "Monsoon / Summer", growthPeriod: "12-14 months" },
+            mango: { costPerHa: 130000, yieldPerHa: 12000, pricePerKg: 45, season: "Summer", growthPeriod: "3-5 years" },
+            pigeonpeas: { costPerHa: 32000, yieldPerHa: 1800, pricePerKg: 75, season: "Monsoon", growthPeriod: "150-180 days" },
+            chickpea: { costPerHa: 30000, yieldPerHa: 2000, pricePerKg: 65, season: "Winter", growthPeriod: "100-120 days" },
+            kidneybeans: { costPerHa: 35000, yieldPerHa: 1500, pricePerKg: 80, season: "Winter (Oct - Nov)", growthPeriod: "90-110 days" },
+            lentil: { costPerHa: 30000, yieldPerHa: 1500, pricePerKg: 70, season: "Winter (Oct - Nov)", growthPeriod: "100-120 days" },
+            mothbeans: { costPerHa: 25000, yieldPerHa: 800, pricePerKg: 60, season: "Monsoon", growthPeriod: "75-90 days" },
+            mungbean: { costPerHa: 30000, yieldPerHa: 1000, pricePerKg: 85, season: "Monsoon / Summer", growthPeriod: "65-75 days" },
+            blackgram: { costPerHa: 34000, yieldPerHa: 1300, pricePerKg: 75, season: "Monsoon / Summer", growthPeriod: "80-100 days" },
+            pomegranate: { costPerHa: 160000, yieldPerHa: 12000, pricePerKg: 80, season: "Monsoon / Summer", growthPeriod: "2-3 years" },
+            watermelon: { costPerHa: 45000, yieldPerHa: 25000, pricePerKg: 10, season: "Summer (Jan - March)", growthPeriod: "80-100 days" },
+            muskmelon: { costPerHa: 40000, yieldPerHa: 15000, pricePerKg: 15, season: "Summer (Jan - March)", growthPeriod: "80-100 days" },
+            grapes: { costPerHa: 150000, yieldPerHa: 30000, pricePerKg: 40, season: "Winter / Summer", growthPeriod: "150-180 days" },
+            apple: { costPerHa: 180000, yieldPerHa: 15000, pricePerKg: 100, season: "Autumn", growthPeriod: "Perennial" },
+            orange: { costPerHa: 140000, yieldPerHa: 18000, pricePerKg: 40, season: "Winter (Oct - March)", growthPeriod: "4-5 years" },
+            papaya: { costPerHa: 95000, yieldPerHa: 45000, pricePerKg: 15, season: "Monsoon / Winter", growthPeriod: "9-11 months" },
+            coconut: { costPerHa: 120000, yieldPerHa: 15000, pricePerKg: 25, season: "Monsoon / Summer", growthPeriod: "5-7 years" },
+            jute: { costPerHa: 52000, yieldPerHa: 2700, pricePerKg: 45, season: "Spring / Monsoon", growthPeriod: "120-150 days" },
+            coffee: { costPerHa: 190000, yieldPerHa: 2200, pricePerKg: 250, season: "Winter", growthPeriod: "Perennial" }
+        };
+
+        // Mock ML prediction function
+        function predictCrops(inputData) {
+            // Simulate ML model prediction
+            const allCrops = Object.keys(cropProfitData);
+            const predictions = [];
+
+            // Simple rule-based prediction for demo
+            allCrops.forEach(crop => {
+                let probability = Math.random() * 0.8 + 0.2; // Random probability between 0.2-1.0
+
+                // Adjust probability based on conditions (simplified logic)
+                if (crop === 'rice' && inputData.rainfall > 1500) probability *= 1.2;
+                if (crop === 'wheat' && inputData.temperature < 25) probability *= 1.1;
+                if (crop === 'cotton' && inputData.temperature > 25) probability *= 1.1;
+                if (crop === 'tomato' && inputData.ph >= 6 && inputData.ph <= 7) probability *= 1.1;
+
+                probability = Math.min(probability, 1.0);
+                predictions.push({ crop, probability });
+            });
+
+            // Sort by probability and return top 3
+            predictions.sort((a, b) => b.probability - a.probability);
+            return predictions.slice(0, 3);
+        }
+
+        function calculateProfitAnalysis(cropName) {
+            const data = cropProfitData[cropName];
+            if (!data) {
+                // Fallback for crops predicted by the ML model that aren't in our JS mock DB
+                // This prevents the UI from crashing and hiding the fertilizer details!
+                return {
+                    costPerHa: 40000,
+                    yieldPerHa: 2000,
+                    pricePerKg: 30,
+                    season: "Year-round",
+                    growthPeriod: "90-120 days",
+                    revenue: 60000,
+                    profit: 20000,
+                    profitMargin: "33.3"
+                };
+            }
+
+            const revenue = data.yieldPerHa * data.pricePerKg;
+            const profit = revenue - data.costPerHa;
+            const profitMargin = ((profit / revenue) * 100).toFixed(1);
+
+            return {
+                ...data,
+                revenue,
+                profit,
+                profitMargin
+            };
+        }
+
+        function displayResults(predictions, landSize = 1.0) {
+            const container = document.getElementById('cropRecommendations');
+            container.innerHTML = '';
+
+            predictions.forEach((prediction, index) => {
+                const profitAnalysis = calculateProfitAnalysis(prediction.crop);
+                const rank = index + 1;
+
+                const cropCard = document.createElement('div');
+                cropCard.className = `crop-card rank-${rank}`;
+
+                let fertilizerHTML = '';
+                if (prediction.fertilizer_plan) {
+                    const fp = prediction.fertilizer_plan;
+                    fertilizerHTML = `
+                        <div class="profit-analysis" style="background: rgba(155, 89, 182, 0.1); border-left: 4px solid #9b59b6; margin-top: 15px;">
+                            <h4 style="margin-bottom: 10px; color: #8e44ad;">💊 Smart Fertilizer Rx (per ha)</h4>
+                            <p style="font-size: 0.9em; margin-bottom: 8px;"><strong>Target N-P-K:</strong> ${fp.N_req}-${fp.P_req}-${fp.K_req} kg/ha</p>
+                            <div class="profit-item">
+                                <span>Urea (46% N) Needed:</span>
+                                <span style="font-weight: 600; color: #8e44ad;">${fp.Urea} kg</span>
+                            </div>
+                            <div class="profit-item">
+                                <span>DAP (46% P, 18% N) Needed:</span>
+                                <span style="font-weight: 600; color: #8e44ad;">${fp.DAP} kg</span>
+                            </div>
+                            <div class="profit-item" style="border-bottom: none;">
+                                <span>MOP (60% K) Needed:</span>
+                                <span style="font-weight: 600; color: #8e44ad;">${fp.MOP} kg</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                cropCard.innerHTML = `
+                    <div class="crop-name">
+                        ${prediction.crop.charAt(0).toUpperCase() + prediction.crop.slice(1)}
+                        <span class="rank-badge">Rank ${rank}</span>
+                    </div>
+                    <div class="crop-probability">
+                        Suitability: ${(prediction.probability * 100).toFixed(1)}%
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong>Season:</strong> ${profitAnalysis.season} | 
+                        <strong>Growth Period:</strong> ${profitAnalysis.growthPeriod}
+                    </div>
+                    <div class="profit-analysis" id="profit-analysis-${rank}">
+                        <h4 style="margin-bottom: 10px; color: #2c3e50;">💰 Dynamic Financial Calculator (Total: ${landSize} ha)</h4>
+                        <div class="profit-item">
+                            <span>Expected Yield (kg/ha):</span>
+                            <span><input type="number" id="yield-${rank}" value="${profitAnalysis.yieldPerHa}" style="width: 100px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: right;"></span>
+                        </div>
+                        <div class="profit-item">
+                            <span>Local Market Price (₹/kg):</span>
+                            <span><input type="number" id="price-${rank}" value="${profitAnalysis.pricePerKg}" style="width: 100px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: right;"></span>
+                        </div>
+                        <div class="profit-item">
+                            <span>Est. Prod Cost (₹/ha):</span>
+                            <span><input type="number" id="cost-${rank}" value="${profitAnalysis.costPerHa}" style="width: 100px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: right;"></span>
+                        </div>
+                        <div class="profit-item" style="background: rgba(52, 152, 219, 0.1); padding: 8px; border-radius: 4px; margin-top: 5px;">
+                            <span>Total Expected Revenue:</span>
+                            <span id="revenue-${rank}" style="font-weight: bold; color: #2980b9;">₹${(profitAnalysis.revenue * landSize).toLocaleString()}</span>
+                        </div>
+                        <div class="profit-item" style="background: rgba(46, 204, 113, 0.1); padding: 8px; border-radius: 4px; margin-top: 5px;">
+                            <span>Total Net Profit:</span>
+                            <span id="netprofit-${rank}" style="font-weight: bold; color: ${profitAnalysis.profit > 0 ? '#27ae60' : '#e74c3c'}">
+                                ₹${(profitAnalysis.profit * landSize).toLocaleString()} (${profitAnalysis.profitMargin}%)
+                            </span>
+                        </div>
+                    </div>
+                    ${fertilizerHTML}
+                `;
+
+                container.appendChild(cropCard);
+
+                // Add real-time event listeners for mathematical updates
+                const updateMath = () => {
+                    const y = parseFloat(document.getElementById(`yield-${rank}`).value) || 0;
+                    const p = parseFloat(document.getElementById(`price-${rank}`).value) || 0;
+                    const c = parseFloat(document.getElementById(`cost-${rank}`).value) || 0;
+
+                    const revPerHa = y * p;
+                    const profPerHa = revPerHa - c;
+                    const margin = revPerHa > 0 ? ((profPerHa / revPerHa) * 100).toFixed(1) : 0;
+
+                    const totalRev = revPerHa * landSize;
+                    const totalProf = profPerHa * landSize;
+
+                    document.getElementById(`revenue-${rank}`).innerText = `₹${totalRev.toLocaleString()}`;
+                    const profElem = document.getElementById(`netprofit-${rank}`);
+                    profElem.innerText = `₹${totalProf.toLocaleString()} (${margin}%)`;
+                    profElem.style.color = totalProf > 0 ? '#27ae60' : '#e74c3c';
+                };
+
+                document.getElementById(`yield-${rank}`).addEventListener('input', updateMath);
+                document.getElementById(`price-${rank}`).addEventListener('input', updateMath);
+                document.getElementById(`cost-${rank}`).addEventListener('input', updateMath);
+            });
+        }
+
+        // Crop prediction form handler
+        document.getElementById('cropForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            // Collect form data
+            const formData = new FormData(e.target);
+            const landSize = parseFloat(formData.get('landSize')) || 1.0;
+            const inputData = {
+                nitrogen: parseFloat(formData.get('nitrogen')),
+                phosphorus: parseFloat(formData.get('phosphorus')),
+                potassium: parseFloat(formData.get('potassium')),
+                temperature: parseFloat(formData.get('temperature')),
+                humidity: parseFloat(formData.get('humidity')),
+                ph: parseFloat(formData.get('ph')),
+                rainfall: parseFloat(formData.get('rainfall'))
+            };
+
+            try {
+                // Call actual backend API for lighting fast responses and real ML logic
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(inputData)
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.predictions) {
+                    displayResults(data.predictions, landSize);
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to predict'));
+                }
+            } catch (error) {
+                console.error("Prediction error:", error);
+                // Fallback to local simulation if backend fails
+                const predictions = predictCrops(inputData);
+                displayResults(predictions, landSize);
+            } finally {
+                // Hide loading and show results immediately, removing the slow 2000ms delay
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').style.display = 'block';
+            }
+        });
+
+        // Geolocation Logic
+        document.getElementById('detectLocationBtn').addEventListener('click', () => {
+            const btn = document.getElementById('detectLocationBtn');
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser.");
+                return;
+            }
+
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = "⏳ Locating...";
+            btn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                try {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    const response = await fetch('/api/weather', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ lat: lat, lon: lon })
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        if (data.city && data.city !== 'Current Location') {
+                            document.getElementById('cityInput').value = data.city;
+                        } else {
+                            document.getElementById('cityInput').value = "Auto-detected Location";
+                        }
+
+                        document.getElementById('temperature').value = data.temperature;
+                        document.getElementById('humidity').value = data.humidity;
+                        document.getElementById('rainfall').value = data.rainfall;
+                        alert(`✅ Successfully fetched live agricultural weather for your location!\nTemp: ${data.temperature}°C, Humidity: ${data.humidity}%, Est. Rainfall: ${data.rainfall}mm`);
+                    } else {
+                        alert(data.error || "Failed to fetch weather for your location.");
+                    }
+                } catch (err) {
+                    alert("Network error fetching location weather.");
+                } finally {
+                    btn.innerHTML = origHTML;
+                    btn.disabled = false;
+                }
+            }, (error) => {
+                alert("Unable to retrieve your location. Please ensure location permissions are granted. " + error.message);
+                btn.innerHTML = origHTML;
+                btn.disabled = false;
+            });
+        });
+
+        // SMS Alerts Logic
+        document.getElementById('subscribeSmsBtn').addEventListener('click', async () => {
+            const phone = document.getElementById('smsPhone').value.trim();
+            const city = document.getElementById('cityInput').value.trim() || 'your farm';
+            const btn = document.getElementById('subscribeSmsBtn');
+
+            if (!phone || phone.length < 7) {
+                alert("Please enter a valid mobile number.");
+                return;
+            }
+
+            const origText = btn.innerText;
+            btn.innerText = "⏳...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/subscribe_alerts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: phone, location: city })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message + "\n\n(Behind the scenes: The backend server logged the mock Twilio SMS dispatch!)");
+                    document.getElementById('smsPhone').value = '';
+                } else {
+                    alert(data.error || "Failed to subscribe to alerts.");
+                }
+            } catch (err) {
+                alert("Network error connecting to subscription server.");
+            } finally {
+                btn.innerText = origText;
+                btn.disabled = false;
+            }
+        });
+
+        // Weather Fetch Logic
+        document.getElementById('fetchWeatherBtn').addEventListener('click', async () => {
+            const city = document.getElementById('cityInput').value.trim();
+            const btn = document.getElementById('fetchWeatherBtn');
+            if (!city) {
+                alert("Please enter a city or location to fetch live weather format.");
+                return;
+            }
+            const origText = btn.innerText;
+            btn.innerText = "Loading...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/weather', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ city: city })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('temperature').value = data.temperature;
+                    document.getElementById('humidity').value = data.humidity;
+                    document.getElementById('rainfall').value = data.rainfall;
+                    alert(`✅ Successfully fetched live agricultural weather for ${data.city}!\nTemp: ${data.temperature}°C, Humidity: ${data.humidity}%, Est. Rainfall: ${data.rainfall}mm`);
+                } else {
+                    alert(data.error || "Failed to fetch weather.");
+                }
+            } catch (err) {
+                alert("Network error fetching weather.");
+            } finally {
+                btn.innerText = origText;
+                btn.disabled = false;
+            }
+        });
+
+        // Mini Chatbot functionality
+        const chatbotTrigger = document.getElementById('chatbotTrigger');
+        const miniChatbot = document.getElementById('miniChatbot');
+        const closeChatbot = document.getElementById('closeChatbot');
+        const miniChatMessages = document.getElementById('miniChatMessages');
+        const miniChatForm = document.getElementById('miniChatForm');
+        const miniChatInput = document.getElementById('miniChatInput');
+        const miniSendBtn = document.getElementById('miniSendBtn');
+        const miniTyping = document.getElementById('miniTyping');
+
+        let chatbotOpen = false;
+
+        chatbotTrigger.addEventListener('click', () => {
+            chatbotOpen = !chatbotOpen;
+            if (chatbotOpen) {
+                miniChatbot.classList.add('show');
+                chatbotTrigger.classList.add('active');
+                chatbotTrigger.innerHTML = '×';
+                miniChatInput.focus();
+            } else {
+                miniChatbot.classList.remove('show');
+                chatbotTrigger.classList.remove('active');
+                chatbotTrigger.innerHTML = '💬';
+            }
+        });
+
+        closeChatbot.addEventListener('click', () => {
+            chatbotOpen = false;
+            miniChatbot.classList.remove('show');
+            chatbotTrigger.classList.remove('active');
+            chatbotTrigger.innerHTML = '💬';
+        });
+
+        function appendMiniMessage(content, isUser = false, isHTML = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `mini-message ${isUser ? 'user' : 'bot'}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'mini-message-content';
+
+            if (isUser && !isHTML) {
+                contentDiv.textContent = content;
+            } else {
+                contentDiv.innerHTML = content;
+            }
+
+            messageDiv.appendChild(contentDiv);
+            miniChatMessages.appendChild(messageDiv);
+            miniChatMessages.scrollTop = miniChatMessages.scrollHeight;
+        }
+
+        function formatMiniResponse(response) {
+            if (response.error) {
+                return `<span style="color: #e74c3c;">${response.error}</span>`;
+            }
+
+            switch (response.type) {
+                case 'general_info':
+                    return `
+                        <strong>${response.crop_name}</strong><br>
+                        <small><em>${response.scientific_name}</em></small><br>
+                        <strong>Type:</strong> ${response.type_category}<br>
+                        <strong>Season:</strong> ${response.season}<br>
+                        <strong>Climate:</strong> ${response.climate}
+                        <div style="margin-top: 5px;">
+                            <span class="mini-chip" onclick="sendMiniMessage('${response.crop_name} diseases')">Diseases</span>
+                            <span class="mini-chip" onclick="sendMiniMessage('${response.crop_name} care')">Care Tips</span>
+                        </div>
+                    `;
+
+                case 'diseases':
+                    return `
+                        <strong>Diseases - ${response.crop_name}:</strong><br>
+                        ${response.diseases.slice(0, 3).map(d => `• ${d}`).join('<br>')}
+                    `;
+
+                case 'care_tips':
+                    return `
+                        <strong>Care Tips - ${response.crop_name}:</strong><br>
+                        ${response.care_tips.slice(0, 2).map(tip => `• ${tip}`).join('<br>')}
+                    `;
+
+                case 'profit_analysis':
+                    const profitMargin = ((response.profit / response.revenue) * 100).toFixed(1);
+                    return `
+                        <strong>Profit - ${response.crop_name}:</strong><br>
+                        <strong>Cost:</strong> ₹${response.cost_per_ha.toLocaleString()}/ha<br>
+                        <strong>Profit:</strong> ₹${response.profit.toLocaleString()} (${profitMargin}%)
+                    `;
+
+                case 'pests':
+                    return `
+                        <strong>Pests - ${response.crop_name}:</strong><br>
+                        ${response.pests.map(p => `• ${p}`).join('<br>')}
+                    `;
+
+                case 'season':
+                    return `
+                        <strong>Seasonality - ${response.crop_name}:</strong><br>
+                        <strong>Season:</strong> ${response.season}<br>
+                        <strong>Growth Period:</strong> ${response.growth_period}
+                    `;
+
+                case 'soil':
+                    return `
+                        <strong>Soil - ${response.crop_name}:</strong><br>
+                        ${response.soil}
+                    `;
+
+                case 'water':
+                    return `
+                        <strong>Water Needs - ${response.crop_name}:</strong><br>
+                        ${response.water_requirement}
+                    `;
+
+                case 'nutrition':
+                    return `
+                        <strong>Nutrition - ${response.crop_name}:</strong><br>
+                        ${response.nutrients}
+                    `;
+
+                case 'live_weather':
+                    return `
+                        <strong>Climate Profile - ${response.crop_name}:</strong><br>
+                        <strong>Temp:</strong> ${response.temp}<br>
+                        <strong>Water Needs:</strong> ${response.water_req}<br>
+                        <strong>Climate:</strong> ${response.climate}
+                    `;
+
+                case 'market':
+                    return `
+                        <strong>Market Trends - ${response.crop_name}:</strong><br>
+                        <strong>Price:</strong> ₹${response.price}/kg<br>
+                        <strong>Trend:</strong> ${response.trend}<br>
+                        <strong>Demand:</strong> ${response.demand}
+                    `;
+
+                case 'vision':
+                    return `
+                        <strong>📷 Vision AI Diagnostics</strong><br>
+                        <strong>Disease:</strong> ${response.diagnosis}<br>
+                        <strong>Cause:</strong> ${response.cause}<br>
+                        <strong>Treatment:</strong> ${response.action}
+                    `;
+
+                case 'help':
+                    return `
+                        I can help with:<br>
+                        <div style="margin-top: 5px;">
+                            ${response.available_crops.slice(0, 6).map(crop =>
+                        `<span class="mini-chip" onclick="sendMiniMessage('Tell me about ${crop}')">${crop}</span>`
+                    ).join('')}
+                        </div>
+                    `;
+
+                default:
+                    return response.message ? marked.parse(response.message) : 'I received your message.';
+            }
+        }
+
+        function sendMiniMessage(message = null) {
+            const messageText = message || miniChatInput.value.trim();
+            if (!messageText) return;
+
+            // Add user message
+            appendMiniMessage(messageText, true);
+
+            // Clear input
+            if (!message) miniChatInput.value = '';
+
+            // Disable input
+            miniSendBtn.disabled = true;
+            miniChatInput.disabled = true;
+            miniTyping.classList.add('show');
+
+            // Send to server
+            const selectedLang = document.getElementById('chatLanguage').value;
+            fetch('/api/chatbot/message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: messageText, language: selectedLang })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    miniTyping.classList.remove('show');
+                    if (data.success) {
+                        const formattedResponse = formatMiniResponse(data.response);
+                        appendMiniMessage(formattedResponse, false);
+                    } else {
+                        appendMiniMessage(`Error: ${data.error}`, false);
+                    }
+                })
+                .catch(error => {
+                    miniTyping.classList.remove('show');
+                    appendMiniMessage(`Error: ${error.message}`, false);
+                })
+                .finally(() => {
+                    miniSendBtn.disabled = false;
+                    miniChatInput.disabled = false;
+                    if (!message) miniChatInput.focus();
+                });
+        }
+
+        // Mini chat form event listeners
+        miniChatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            sendMiniMessage();
+        });
+
+        miniChatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMiniMessage();
+            }
+        });
+
+        // Voice Input Logic
+        const voiceBtn = document.getElementById('voiceBtn');
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            voiceBtn.addEventListener('click', () => {
+                const originalBg = voiceBtn.style.background;
+                voiceBtn.style.background = '#e74c3c'; // red to indicate listening
+                recognition.start();
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    miniChatInput.value = transcript;
+                    sendMiniMessage();
+                };
+
+                recognition.onerror = (event) => {
+                    console.error("Speech recognition error", event.error);
+                    voiceBtn.style.background = originalBg;
+                    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                        alert("⚠️ Microphone Access Blocked!\nMobile browsers STRICTLY require HTTPS to use the mic. Please test on 'localhost' on your PC or deploy this app to a cloud server to use Voice Input on your phone.");
+                    }
+                };
+
+                recognition.onend = () => {
+                    voiceBtn.style.background = originalBg;
+                };
+            });
+        } else {
+            voiceBtn.style.display = 'none'; // Hide if browser doesn't support it
+        }
+
+        // Image Upload Vision Logic
+        const uploadBtn = document.getElementById('uploadBtn');
+        const imageUploadInput = document.getElementById('imageUploadInput');
+
+        uploadBtn.addEventListener('click', () => {
+            imageUploadInput.click();
+        });
+
+        imageUploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const base64Image = event.target.result;
+
+                // Show uploaded image as thumbnail in chat with scanner effect
+                const imgHTML = `
+                    <div class="scanning-container" id="scanner-${Date.now()}">
+                        <div class="scanning-overlay"></div>
+                        <img src="${base64Image}" style="max-width: 100%; border-radius: 8px; filter: grayscale(30%);">
+                    </div>
+                    <br><small><i style="color: #276749;">🤖 AI Agricultural Processing...</i></small>
+                `;
+                appendMiniMessage(imgHTML, true, true);
+
+                miniTyping.classList.add('show');
+
+                // Send to backend Vision API
+                fetch('/api/chatbot/vision', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64Image })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Remove scanner effect from the specific image if needed, or just let it finish
+                        miniTyping.classList.remove('show');
+                        if (data.success) {
+                            const formatted = formatMiniResponse(data.response);
+                            appendMiniMessage(formatted, false);
+                        } else {
+                            appendMiniMessage("Error analyzing image: " + data.error, false);
+                        }
+                    })
+                    .catch(err => {
+                        miniTyping.classList.remove('show');
+                        appendMiniMessage("Network error during analysis.", false);
+                    });
+
+                // Clear input
+                e.target.value = '';
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Close chatbot when clicking outside
+        document.addEventListener('click', (e) => {
+            if (chatbotOpen &&
+                !miniChatbot.contains(e.target) &&
+                !chatbotTrigger.contains(e.target)) {
+                chatbotOpen = false;
+                miniChatbot.classList.remove('show');
+                chatbotTrigger.classList.remove('active');
+                chatbotTrigger.innerHTML = '💬';
+            }
+        });
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('ServiceWorker registered!', reg))
+                    .catch(err => console.log('ServiceWorker registration failed: ', err));
+            });
+        }
+
+        // Handle Authentication State UI
+        document.addEventListener('DOMContentLoaded', () => {
+            const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+
+            // Redirect is handled instantly at the top of the head tag
+
+            const userName = localStorage.getItem('userName');
+            const loginBtn = document.getElementById('loginBtnHeader');
+            const logoutBtn = document.getElementById('logoutBtnHeader');
+            const welcomeMsg = document.getElementById('welcomeMessage');
+
+            loginBtn.style.display = 'none';
+            logoutBtn.style.display = 'block';
+            welcomeMsg.style.display = 'block';
+            welcomeMsg.textContent = '👋 ' + (userName ? userName.split('@')[0] : 'Farmer');
+
+            logoutBtn.addEventListener('click', () => {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('userName');
+                window.location.href = '/login';
+            });
+        });
+    </script>
+</body>
+
+</html>
