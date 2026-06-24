@@ -570,7 +570,9 @@
     <div class="container">
         <div class="header" style="position: relative;">
             <div id="userStateArea"
-                style="position: absolute; top: 20px; right: 30px; display: flex; align-items: center; gap: 15px;">
+                style="position: absolute; top: 20px; right: 30px; display: flex; align-items: center; gap: 15px; z-index: 10;">
+                <a href="/chatbot" id="chatAdvisorLink"
+                    style="background: #ecc94b; color: #2c5282; padding: 8px 18px; border-radius: 20px; text-decoration: none; font-weight: 700; font-size: 0.9em; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 5px;">💬 Chat Advisor</a>
                 <span id="welcomeMessage"
                     style="font-weight: 600; display: none; background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 20px;"></span>
                 <a href="/login" id="loginBtnHeader"
@@ -611,7 +613,7 @@
                 <div class="weather-panel"
                     style="background: rgba(56, 161, 105, 0.08); border-left: 4px solid #38a169; padding: 18px; border-radius: 10px; margin-bottom: 30px;">
                     <h3 style="margin-bottom: 10px; color: #276749; font-size: 1.15em; font-weight: 700;">📱 Agriculture
-                        Alert Intelligence</h3>
+                        Alert Intelligence (5-Day Forecast)</h3>
                     <p style="font-size: 0.95em; margin-bottom: 15px; color: #4a5568;">Register your mobile number to
                         receive automated extreme weather SMS warnings and rain delays.</p>
                     <div style="display: flex; gap: 10px; margin-bottom: 5px;">
@@ -620,6 +622,7 @@
                         <button type="button" id="subscribeSmsBtn"
                             style="background: #38a169; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(56,161,105,0.3);">Enroll</button>
                     </div>
+                    <div id="smsFeedback" style="margin-top: 12px; display: none; font-size: 0.9em; line-height: 1.4;"></div>
                 </div>
 
                 <form id="cropForm">
@@ -1023,12 +1026,14 @@
             const phone = document.getElementById('smsPhone').value.trim();
             const city = document.getElementById('cityInput').value.trim() || 'your farm';
             const btn = document.getElementById('subscribeSmsBtn');
+            const feedbackDiv = document.getElementById('smsFeedback');
 
             if (!phone || phone.length < 7) {
                 alert("Please enter a valid mobile number.");
                 return;
             }
 
+            feedbackDiv.style.display = 'none';
             const origText = btn.innerText;
             btn.innerText = "⏳...";
             btn.disabled = true;
@@ -1040,15 +1045,45 @@
                     body: JSON.stringify({ phone: phone, location: city })
                 });
                 const data = await response.json();
+                feedbackDiv.style.display = 'block';
 
                 if (data.success) {
-                    alert(data.message + "\n\n(Behind the scenes: The backend server logged the mock Twilio SMS dispatch!)");
+                    let cleanedPhone = data.phone.replace(/\D/g, ''); // strip non-digits
+                    if (cleanedPhone.length === 10 && !cleanedPhone.startsWith('91')) {
+                        cleanedPhone = '91' + cleanedPhone; // assume India code +91 if 10 digits
+                    }
+                    
+                    const encodedMsg = encodeURIComponent(data.sms_body);
+                    const waLink = `https://api.whatsapp.com/send?phone=${cleanedPhone}&text=${encodedMsg}`;
+                    
+                    if (data.sms_sent) {
+                        feedbackDiv.innerHTML = `
+                            <span style="color: #276749; font-weight: bold; display: block; margin-bottom: 5px;">✅ 5-Day Weather SMS Sent to ${data.phone}!</span>
+                            <span style="color: #4a5568;">Forward/save this report on your phone:</span><br>
+                            <a href="${waLink}" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; background: #25D366; color: white; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.85em; box-shadow: 0 2px 4px rgba(37,211,102,0.3); transition: transform 0.2s; border: none;">
+                                💬 Send to WhatsApp
+                            </a>
+                        `;
+                    } else {
+                        feedbackDiv.innerHTML = `
+                            <span style="color: #c53030; font-weight: bold; display: block; margin-bottom: 5px;">⚠️ SMS Limit hit on the Render server!</span>
+                            <span style="color: #4a5568;">Click below to send the 5-day weather report directly to your phone via WhatsApp for free:</span><br>
+                            <a href="${waLink}" target="_blank" style="display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; background: #25D366; color: white; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.85em; box-shadow: 0 2px 4px rgba(37,211,102,0.3); transition: transform 0.2s; border: none;">
+                                💬 Send via WhatsApp
+                            </a>
+                            <details style="margin-top: 10px; font-size: 0.85em; color: #718096; cursor: pointer;">
+                                <summary>Preview 5-Day Weather Report Text</summary>
+                                <pre style="margin-top: 5px; background: #f7fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; font-size: 0.85em; color: #2d3748; text-align: left;">${data.sms_body}</pre>
+                            </details>
+                        `;
+                    }
                     document.getElementById('smsPhone').value = '';
                 } else {
-                    alert(data.error || "Failed to subscribe to alerts.");
+                    feedbackDiv.innerHTML = `<span style="color: #c53030; font-weight: bold;">❌ Failed: ${data.error || "Subscription failed"}</span>`;
                 }
             } catch (err) {
-                alert("Network error connecting to subscription server.");
+                feedbackDiv.style.display = 'block';
+                feedbackDiv.innerHTML = `<span style="color: #c53030; font-weight: bold;">❌ Network error connecting to subscription server.</span>`;
             } finally {
                 btn.innerText = origText;
                 btn.disabled = false;
@@ -1436,6 +1471,14 @@
             logoutBtn.style.display = 'block';
             welcomeMsg.style.display = 'block';
             welcomeMsg.textContent = '👋 ' + (userName ? userName.split('@')[0] : 'Farmer');
+
+            // Auto-fill mobile number for weather alert feature
+            if (userName && userName.match(/^\+?\d+$/)) {
+                const smsPhoneInput = document.getElementById('smsPhone');
+                if (smsPhoneInput) {
+                    smsPhoneInput.value = userName;
+                }
+            }
 
             logoutBtn.addEventListener('click', () => {
                 localStorage.removeItem('isLoggedIn');

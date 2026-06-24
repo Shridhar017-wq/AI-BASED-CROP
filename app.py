@@ -37,6 +37,9 @@ app = Flask(__name__)
 CORS(app)
 app.secret_key = 'your-secret-key-here'  # Change this to a secure secret key
 
+# Store OTPs temporarily
+OTP_STORE = {}
+
 # Crop profit data (same as before)
 CROP_PROFIT_DATA = {
     'rice': {'cost_per_ha': 45000, 'yield_per_ha': 4500, 'price_per_kg': 25, 'season': 'Monsoon (June - October)', 'growth_period': '120-150 days'},
@@ -838,6 +841,54 @@ def get_live_weather():
     except Exception as e:
         return jsonify({'error': f'Failed to fetch weather: {str(e)}'}), 500
 
+@app.route('/api/send_otp', methods=['POST'])
+def send_otp():
+    """Send real OTP via TextBelt"""
+    import random
+    import urllib.request
+    import urllib.parse
+    import json
+    
+    try:
+        data = request.get_json()
+        phone = data.get('phone', '').strip()
+        if not phone or len(phone) < 7:
+            return jsonify({'success': False, 'error': 'Valid mobile number required'}), 400
+            
+        otp = str(random.randint(100000, 999999))
+        OTP_STORE[phone] = otp
+        
+        # TextBelt free SMS
+        textbelt_url = "https://textbelt.com/text"
+        req_data = urllib.parse.urlencode({
+            'phone': phone,
+            'message': f"Your Farm Dashboard Login OTP is: {otp}",
+            'key': 'textbelt'
+        }).encode('utf-8')
+        
+        req = urllib.request.Request(textbelt_url, data=req_data)
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode())
+            if result.get('success'):
+                return jsonify({'success': True, 'message': 'Real OTP Sent!'})
+            else:
+                return jsonify({'success': False, 'error': result.get('error', 'Textbelt Error')}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/verify_otp', methods=['POST'])
+def verify_otp():
+    """Verify OTP"""
+    data = request.get_json()
+    phone = data.get('phone', '').strip()
+    code = data.get('code', '').strip()
+    
+    if phone in OTP_STORE and OTP_STORE[phone] == code:
+        del OTP_STORE[phone]
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': 'Invalid OTP code'}), 400
+
 @app.route('/api/subscribe_alerts', methods=['POST'])
 def subscribe_alerts():
     """Mock Twilio Route for SMS Weather/Price Alerts with 3-Day Forecast"""
@@ -868,8 +919,8 @@ def subscribe_alerts():
                 lon = geo_data['results'][0]['longitude']
                 actual_city = geo_data['results'][0]['name']
                 
-            # 2. Get 3-day forecast
-            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=3"
+            # 2. Get 5-day forecast
+            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=5"
             with urllib.request.urlopen(weather_url) as response:
                 weather_data = json.loads(response.read().decode())
                 
@@ -878,17 +929,17 @@ def subscribe_alerts():
             min_temps = weather_data['daily']['temperature_2m_min']
             rain = weather_data['daily']['precipitation_sum']
             
-            sms_body = f"AgriAlert for {actual_city}:\n\n"
-            for i in range(3):
+            sms_body = f"AgriAlert for {actual_city} (5-Day Weather):\n\n"
+            for i in range(5):
                 sms_body += f"{dates[i]}:\nTemp: {min_temps[i]}C to {max_temps[i]}C\nRain: {rain[i]}mm\n\n"
             sms_body += "Reply STOP to unsubscribe."
                 
         except Exception as e:
-            sms_body = f"AgriAlert for {location_city}: Unable to fetch precise 3-day data at this moment. Stay tuned!"
+            sms_body = f"AgriAlert for {location_city}: Unable to fetch precise 5-day data at this moment. Stay tuned!"
 
         # REAL SMS API EXECUTION using TextBelt (Sends 1 Free Real SMS per day without API Keys)
         print("\n" + "="*50)
-        print("📲 [PREPARING REAL SMS DISPATCH VIA TEXTBELT]")
+        print("[PREPARING REAL SMS DISPATCH VIA TEXTBELT]")
         print(f"TO: {phone}")
         print(f"MESSAGE:\n{sms_body}")
         
@@ -910,15 +961,15 @@ def subscribe_alerts():
                 result = json.loads(response.read().decode())
                 
                 if result.get('success'):
-                    print(f"✅ REAL SMS SENT SUCCESSFULLY! Quota remaining: {result.get('quotaRemaining', 0)}")
+                    print(f"REAL SMS SENT SUCCESSFULLY! Quota remaining: {result.get('quotaRemaining', 0)}")
                     is_real_sms_sent = True
                 else:
                     api_error_reason = result.get('error', 'Unknown Error')
-                    print(f"❌ Textbelt Real SMS failed: {api_error_reason}")
+                    print(f"Textbelt Real SMS failed: {api_error_reason}")
                     
         except Exception as e:
             api_error_reason = str(e)
-            print(f"❌ Textbelt API connection error: {api_error_reason}")
+            print(f"Textbelt API connection error: {api_error_reason}")
 
         print("="*50 + "\n")
         
@@ -929,7 +980,10 @@ def subscribe_alerts():
             
         return jsonify({
             'success': True,
-            'message': status_msg
+            'message': status_msg,
+            'sms_sent': is_real_sms_sent,
+            'sms_body': sms_body,
+            'phone': phone
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1200,4 +1254,5 @@ if __name__ == '__main__':
     print("- /chatbot : Chatbot interface") 
     print("- /api/predict : Crop prediction")
     print("- /api/chatbot/message : Chatbot messaging")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5001))
+    app.run(debug=True, host='0.0.0.0', port=port)

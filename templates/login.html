@@ -256,28 +256,7 @@
             Sign in with Google
         </button>
 
-        <button class="btn btn-phone" id="phoneLoginBtn">
-            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-            Sign in with Mobile
-        </button>
 
-        <!-- OTP Section (Hidden initially) -->
-        <div id="otpSection">
-            <div id="recaptcha-container"></div>
-            <div class="input-group">
-                <label for="phoneNumber">Mobile Number (with +91)</label>
-                <input type="tel" id="phoneNumber" placeholder="+91 9999999999">
-            </div>
-            <button class="btn btn-primary" id="sendOtpBtn">Send OTP</button>
-            
-            <div id="otpVerificationDiv" style="display: none; margin-top: 15px;">
-                <div class="input-group">
-                    <label for="otpCode">Verification Code</label>
-                    <input type="text" id="otpCode" placeholder="123456">
-                </div>
-                <button class="btn btn-primary" id="verifyOtpBtn">Verify & Login</button>
-            </div>
-        </div>
 
         <a href="/" class="back-link">← Back to Home</a>
     </div>
@@ -311,15 +290,9 @@
             firebase.initializeApp(firebaseConfig);
         }
 
-        // UI Elements
         const alertBox = document.getElementById('alertBox');
         const emailForm = document.getElementById('emailLoginForm');
         const googleBtn = document.getElementById('googleLoginBtn');
-        const phoneBtn = document.getElementById('phoneLoginBtn');
-        const otpSection = document.getElementById('otpSection');
-        const sendOtpBtn = document.getElementById('sendOtpBtn');
-        const verifyOtpBtn = document.getElementById('verifyOtpBtn');
-        const otpVerificationDiv = document.getElementById('otpVerificationDiv');
 
         function showAlert(message, isError = true) {
             alertBox.style.display = 'block';
@@ -390,64 +363,7 @@
                 });
         });
 
-        // 3. Phone Login Toggle
-        phoneBtn.addEventListener('click', () => {
-            otpSection.style.display = otpSection.style.display === 'block' ? 'none' : 'block';
-            if (isFirebaseConfigured && !window.recaptchaVerifier) {
-                window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-                    'size': 'normal',
-                    'callback': (response) => {
-                        // reCAPTCHA solved, allow signInWithPhoneNumber.
-                    }
-                });
-                window.recaptchaVerifier.render();
-            }
-        });
 
-        // Send OTP
-        sendOtpBtn.addEventListener('click', () => {
-            const phoneNumber = document.getElementById('phoneNumber').value;
-            if (!phoneNumber) {
-                showAlert("Please enter phone number");
-                return;
-            }
-
-            if (!isFirebaseConfigured) {
-                showAlert("Demo Mode: Assuming OTP is 123456", false);
-                otpVerificationDiv.style.display = 'block';
-                return;
-            }
-
-            const appVerifier = window.recaptchaVerifier;
-            firebase.auth().signInWithPhoneNumber(phoneNumber, appVerifier)
-                .then((confirmationResult) => {
-                    window.confirmationResult = confirmationResult;
-                    otpVerificationDiv.style.display = 'block';
-                    showAlert("OTP Sent successfully!", false);
-                }).catch((error) => {
-                    showAlert("Error sending OTP: " + error.message);
-                });
-        });
-
-        // Verify OTP
-        verifyOtpBtn.addEventListener('click', () => {
-            const code = document.getElementById('otpCode').value;
-            
-            if (!isFirebaseConfigured) {
-                if (code === '123456') {
-                    handleLoginSuccess({ phoneNumber: document.getElementById('phoneNumber').value });
-                } else {
-                    showAlert("Demo Mode: Invalid OTP. Use 123456");
-                }
-                return;
-            }
-
-            window.confirmationResult.confirm(code).then((result) => {
-                handleLoginSuccess(result.user);
-            }).catch((error) => {
-                showAlert("Invalid OTP code");
-            });
-        });
     </script>
 </body>
 </html>
