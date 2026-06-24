@@ -1,4 +1,4 @@
-const CACHE_NAME = 'crop-ai-v1';
+const CACHE_NAME = 'crop-ai-v2';
 const urlsToCache = [
   '/',
   '/chatbot',
